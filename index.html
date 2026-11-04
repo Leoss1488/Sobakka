@@ -162,7 +162,7 @@
 
   <div class="now" id="now" aria-live="polite"></div>
 
-  <button id="start">Включить случайную</button>
+  <button id="start" style="display:none">Включить</button>
 
   <div id="stage">
     <div class="frame" id="yt-wrap"><div id="yt"></div></div>
@@ -191,7 +191,7 @@ const SONGS = [
   { t: 'Образ',                    yt: '7dj0StM3EC0', l: 'ru' },
   { t: 'Посмотри в мои глаза',     yt: 'MhfhIXQmlA8', l: 'ru' },
   { t: 'Хип хоп в крови',          yt: 'DFDUEwNEWPs', l: 'ru' },
-  { t: 'Оксана',                   sc: 'https://on.soundcloud.com/zPJozuxKHb3954falc', l: 'uk' },
+  { t: 'Оксана',                   sc: 'https://soundcloud.com/ladno-ladno-472601777/sobakka-oksana', l: 'uk' },
 
   { t: 'Миф',                      yt: 'eOpnvqcDW8Q', l: 'ru' },
   { t: 'Власть',                   yt: 'fwKkegwACHE', l: 'ru' },
@@ -218,14 +218,14 @@ const SONGS = [
   { t: 'Самоконтроль',             yt: 'vrOw-EyX1Bo', l: 'uk' },
   { t: 'Наташа',                   yt: 'pUHPKDo4KYY', l: 'uk' },
   { t: 'Jam',                      yt: 'JWQU2Zb2vQ8', l: 'uk' },
-  { t: 'Донбас',                   sc: 'https://on.soundcloud.com/N1nYHTBCS4erMys5MC', l: 'uk' },
+  { t: 'Донбас',                   sc: 'https://soundcloud.com/potheznik-official/sobakka-milij-donbas-ua', l: 'uk' },
 ];
 
 const TAG = { ru: 'на русском', uk: 'українською' };
 
 const $ = id => document.getElementById(id);
 let ytPlayer = null, ytApiReady = false, pendingIndex = null;
-let bag = [], last = -1, fails = 0;
+let bag = [], last = -1, fails = 0, playing = false, hintTimer = null;
 
 /* ===== Случайный выбор без повторов, пока не сыграют все ===== */
 function shuffle(a) {
@@ -237,7 +237,7 @@ function shuffle(a) {
 }
 function nextIndex() {
   if (!bag.length) {
-    bag = shuffle([...SONGS.keys()]);
+    bag = shuffle([...SONGS.keys()].filter(i => !(SONGS[i].sc && /on\.soundcloud\.com/.test(SONGS[i].sc))));
     if (bag.length > 1 && bag[bag.length - 1] === last) {
       [bag[0], bag[bag.length - 1]] = [bag[bag.length - 1], bag[0]];
     }
@@ -295,13 +295,28 @@ function playSc(url) {
 }
 
 /* ===== Общая логика ===== */
-function setSpin(on) { $('photo').classList.toggle('spin', on); }
+function setSpin(on) {
+  playing = on;
+  $('photo').classList.toggle('spin', on);
+  if (on) { clearTimeout(hintTimer); $('start').style.display = 'none'; $('note').textContent = ''; }
+}
 
 function show(i) {
   const s = SONGS[i];
   $('now').innerHTML = '<p class="name"></p><span class="tag"></span>';
   $('now').querySelector('.name').textContent = s.t;
   $('now').querySelector('.tag').textContent = TAG[s.l];
+
+  playing = false;
+  $('start').style.display = 'none';
+  $('note').textContent = '';
+  clearTimeout(hintTimer);
+  hintTimer = setTimeout(() => {
+    if (!playing) {
+      $('start').style.display = 'block';
+      $('note').textContent = 'Телефон не дал включить звук сам. Нажми «Включить» или ▶ на плеере.';
+    }
+  }, 3500);
 
   const isYt = !!s.yt;
   $('yt-wrap').style.display = isYt ? 'block' : 'none';
@@ -318,11 +333,16 @@ function show(i) {
 
 function next() { show(nextIndex()); }
 
+/* Пробуем включить сразу. Если телефон не разрешил, через пару секунд появится кнопка. */
 $('start').addEventListener('click', () => {
   $('start').style.display = 'none';
-  $('stage').style.display = 'block';
-  next();
+  try {
+    if (SONGS[last].yt) { if (ytPlayer) ytPlayer.playVideo(); }
+    else SC.Widget($('sc')).play();
+  } catch (e) {}
 });
+$('stage').style.display = 'block';
+next();
 $('again').addEventListener('click', next);
 </script>
 </body>
